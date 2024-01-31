@@ -1,17 +1,11 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 import "../ownership/Controlled.sol";
-import "../libs/SafeMath.sol";
 import "../interfaces/ERC20Interface.sol";
 import "../interfaces/WhitelistInterface.sol";
 
 /// @dev Bond EUR Token
 contract BondEURToken is ERC20Interface, Controlled {
-    using SafeMath for uint256;
-
-    // ERC20 compatible total supply
-    uint256 public totalSupply = 0;
-
     // Name of the token contract
     string public constant name = "Bond EUR Token";
 
@@ -20,7 +14,7 @@ contract BondEURToken is ERC20Interface, Controlled {
 
     // Number of token's decimals
     uint8 public constant decimals = 18;
-    
+
     // Flag indicating if transfers are enabled
     bool public transfersEnabled = true;
 
@@ -28,13 +22,13 @@ contract BondEURToken is ERC20Interface, Controlled {
     mapping(address => uint256) balances;
 
     // allowance mapping
-    mapping (address => mapping (address => uint256)) internal allowed;
+    mapping(address => mapping(address => uint256)) internal allowed;
 
     // whitelist reference
     WhitelistInterface public whitelist;
 
     /// @notice Constructor to create a BondEURToken
-    constructor(address _whitelist) public {
+    constructor(address _whitelist) {
         require(_whitelist != address(0));
         whitelist = WhitelistInterface(_whitelist);
     }
@@ -44,11 +38,14 @@ contract BondEURToken is ERC20Interface, Controlled {
     function enableTransfers(bool _transfersEnabled) public onlyController {
         transfersEnabled = _transfersEnabled;
     }
-     
+
     /// @notice Transfer token for a specified address
     /// @param _to The address to transfer to.
     /// @param _value The amount to be transferred.
-    function transfer(address _to, uint256 _value) public returns (bool) {
+    function transfer(
+        address _to,
+        uint256 _value
+    ) public override returns (bool) {
         require(transfersEnabled);
         _transfer(msg.sender, _to, _value);
         return true;
@@ -56,11 +53,13 @@ contract BondEURToken is ERC20Interface, Controlled {
 
     /// @notice Gets the balance of the specified address.
     /// @param _owner The address to query the the balance of.
-    /// @return An uint256 representing the amount owned by the passed address.
-    function balanceOf(address _owner) public view returns (uint256 balance) {
+    /// @return balance uint256 representing the amount owned by the passed address.
+    function balanceOf(
+        address _owner
+    ) public view override returns (uint256 balance) {
         return balances[_owner];
     }
-  
+
     /// @dev Internal function to transfer tokens from one address to another
     /// @param _from address The address which you want to send tokens from
     /// @param _to address The address which you want to transfer to
@@ -71,8 +70,8 @@ contract BondEURToken is ERC20Interface, Controlled {
         require(_value <= balances[_from]);
         require(balances[_to] + _value > balances[_to]); // Overflow check
 
-        balances[_from] = balances[_from].sub(_value);
-        balances[_to] = balances[_to].add(_value);
+        balances[_from] = balances[_from] - (_value);
+        balances[_to] = balances[_to] + (_value);
         emit Transfer(_from, _to, _value);
     }
 
@@ -81,13 +80,17 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// @param _to address The address which you want to transfer to
     /// @param _value uint256 the amount of tokens to be transferred
     /// @return True if transfer successful
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _value
+    ) public override returns (bool) {
         // The controller of this contract can move tokens around at will,
-        //  this is important to recognize! 
+        //  this is important to recognize!
         if (msg.sender != controller) {
             require(transfersEnabled);
             require(_value <= allowed[_from][msg.sender]);
-            allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+            allowed[_from][msg.sender] = allowed[_from][msg.sender] - (_value);
         }
         _transfer(_from, _to, _value);
         return true;
@@ -100,7 +103,10 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
     /// @param _spender The address which will spend the funds.
     /// @param _value The amount of tokens to be spent.
-    function approve(address _spender, uint256 _value) public returns (bool) {
+    function approve(
+        address _spender,
+        uint256 _value
+    ) public override returns (bool) {
         require((_value == 0) || (allowed[msg.sender][_spender] == 0));
         allowed[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
@@ -110,8 +116,11 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// @notice Function to check the amount of tokens that an owner allowed to a spender.
     /// @param _owner address The address which owns the funds.
     /// @param _spender address The address which will spend the funds.
-    /// @return A uint256 specifying the amount of tokens still available for the spender.
-    function allowance(address _owner, address _spender) public view returns (uint256 remaining) {
+    /// @return remaining uint256 specifying the amount of tokens still available for the spender.
+    function allowance(
+        address _owner,
+        address _spender
+    ) public view override returns (uint256 remaining) {
         return allowed[_owner][_spender];
     }
 
@@ -122,8 +131,13 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// From MonolithDAO Token.sol
     /// @param _spender The address which will spend the funds.
     /// @param _addedValue The amount of tokens to increase the allowance by.
-    function increaseApproval (address _spender, uint256 _addedValue) public returns (bool success) {
-        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
+    function increaseApproval(
+        address _spender,
+        uint256 _addedValue
+    ) public returns (bool success) {
+        allowed[msg.sender][_spender] =
+            allowed[msg.sender][_spender] +
+            (_addedValue);
         emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
     }
@@ -135,12 +149,15 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// From MonolithDAO Token.sol
     /// @param _spender The address which will spend the funds.
     /// @param _subtractedValue The amount of tokens to decrease the allowance by.
-    function decreaseApproval (address _spender, uint256 _subtractedValue) public returns (bool success) {
+    function decreaseApproval(
+        address _spender,
+        uint256 _subtractedValue
+    ) public returns (bool success) {
         uint256 oldValue = allowed[msg.sender][_spender];
         if (_subtractedValue > oldValue) {
             allowed[msg.sender][_spender] = 0;
         } else {
-            allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+            allowed[msg.sender][_spender] = oldValue - (_subtractedValue);
         }
         emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
@@ -150,9 +167,12 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// @param _value The amount of tokens to mint.
     /// @param _to The address that will receive the minted tokens.
     /// @return A boolean that indicates if the operation was successful.
-    function mint(uint256 _value, address _to) public onlyController returns (bool) {
-        totalSupply = totalSupply.add(_value);
-        balances[_to] = balances[_to].add(_value);
+    function mint(
+        uint256 _value,
+        address _to
+    ) public onlyController returns (bool) {
+        totalSupply = totalSupply + (_value);
+        balances[_to] = balances[_to] + (_value);
         emit Mint(_to, _value);
         emit Transfer(address(0), _to, _value);
         return true;
@@ -162,16 +182,19 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// @param _value The amount of token to be burned.
     /// @param _from The address from which tokens are burned.
     /// @return A boolean that indicates if the operation was successful.
-    function burn(uint256 _value, address _from) public onlyController returns (bool) {
-        totalSupply = totalSupply.sub(_value); 
-        balances[_from] = balances[_from].sub(_value); 
+    function burn(
+        uint256 _value,
+        address _from
+    ) public onlyController returns (bool) {
+        totalSupply = totalSupply - (_value);
+        balances[_from] = balances[_from] - (_value);
         emit Burn(_from, _value);
         emit Transfer(_from, address(0), _value);
         return true;
     }
 
     /// @dev fallback function which prohibits payment
-    function () public payable {
+    fallback() external {
         revert();
     }
 
@@ -180,19 +203,24 @@ contract BondEURToken is ERC20Interface, Controlled {
     /// @param _token The address of the token contract that you want to recover
     ///  set to 0 in case you want to extract ether.
     function claimTokens(address _token) public onlyController {
+        address thisAddress = payable(address(this));
+
         if (_token == address(0)) {
-            controller.transfer(address(this).balance);
+            payable((address(controller))).transfer(thisAddress.balance);
             return;
         }
 
         ERC20Interface token = ERC20Interface(_token);
-        uint balance = token.balanceOf(this);
+        uint balance = token.balanceOf(thisAddress);
         token.transfer(controller, balance);
         emit ClaimedTokens(_token, controller, balance);
     }
 
     event Mint(address indexed _to, uint256 _value);
     event Burn(address indexed _from, uint256 _value);
-    event ClaimedTokens(address indexed _token, address indexed _controller, uint256 _amount);
+    event ClaimedTokens(
+        address indexed _token,
+        address indexed _controller,
+        uint256 _amount
+    );
 }
-

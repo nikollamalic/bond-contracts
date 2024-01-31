@@ -1,12 +1,9 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
-import "../libs/SafeMath.sol";
 import "./HistoryToken.sol";
 
 /// @dev Dividend History Token
 contract DividendHistoryToken is HistoryToken {
-    using SafeMath for uint256;
-
     /// @dev `Dividend` is the structure that represents a dividend deposit
     struct Dividend {
         // Block number of deposit
@@ -20,14 +17,14 @@ contract DividendHistoryToken is HistoryToken {
         // Total supply at the block
         uint256 totalSupply;
         // Indicates if address has already claimed the dividend
-        mapping (address => bool) claimed;
+        mapping(address => bool) claimed;
     }
 
     // Array of depositeddividends
     Dividend[] public dividends;
 
     // Indicates the newest dividends address has claimed
-    mapping (address => uint256) dividendsClaimed;
+    mapping(address => uint256) dividendsClaimed;
 
     ////////////////
     // Dividend deposits
@@ -39,10 +36,16 @@ contract DividendHistoryToken is HistoryToken {
         uint256 currentSupply = totalSupplyAt(block.number);
         require(currentSupply > 0);
         uint256 dividendIndex = dividends.length;
-        require(block.number > 0);    
-        uint256 blockNumber = block.number - 1; 
+        require(block.number > 0);
+        uint256 blockNumber = block.number - 1;
         dividends.push(Dividend(blockNumber, now, _amount, 0, currentSupply));
-        emit DividendDeposited(msg.sender, blockNumber, _amount, currentSupply, dividendIndex);
+        emit DividendDeposited(
+            msg.sender,
+            blockNumber,
+            _amount,
+            currentSupply,
+            dividendIndex
+        );
     }
 
     ////////////////
@@ -53,7 +56,10 @@ contract DividendHistoryToken is HistoryToken {
     /// @param _owner The address where dividends are registered to be claimed
     /// @param _dividendIndex The index of the dividend to claim
     /// @return The total amount of available EUR tokens for claim
-    function claimDividendByIndex(address _owner, uint256 _dividendIndex) internal returns (uint256) {
+    function claimDividendByIndex(
+        address _owner,
+        uint256 _dividendIndex
+    ) internal returns (uint256) {
         uint256 claim = calculateClaimByIndex(_owner, _dividendIndex);
         Dividend storage dividend = dividends[_dividendIndex];
         dividend.claimed[_owner] = true;
@@ -65,7 +71,10 @@ contract DividendHistoryToken is HistoryToken {
     /// @param _owner Address of belonging amount
     /// @param _dividendIndex The index of the dividend for which calculation is done
     /// @return The total amount of available EUR tokens for claim
-    function calculateClaimByIndex(address _owner, uint256 _dividendIndex) internal view returns (uint256) {
+    function calculateClaimByIndex(
+        address _owner,
+        uint256 _dividendIndex
+    ) internal view returns (uint256) {
         Dividend storage dividend = dividends[_dividendIndex];
         uint256 balance = balanceOfAt(_owner, dividend.blockNumber);
         uint256 claim = balance.mul(dividend.amount).div(dividend.totalSupply);
@@ -78,7 +87,11 @@ contract DividendHistoryToken is HistoryToken {
     function unclaimedDividends(address _owner) public view returns (uint256) {
         uint256 sumOfDividends = 0;
         if (dividendsClaimed[_owner] < dividends.length) {
-            for (uint256 i = dividendsClaimed[_owner]; i < dividends.length; i++) {
+            for (
+                uint256 i = dividendsClaimed[_owner];
+                i < dividends.length;
+                i++
+            ) {
                 if (!dividends[i].claimed[_owner]) {
                     uint256 dividend = calculateClaimByIndex(_owner, i);
                     sumOfDividends = sumOfDividends.add(dividend);
@@ -91,12 +104,18 @@ contract DividendHistoryToken is HistoryToken {
     /// @notice Claims available dividends for `_owner` address.
     /// @param _owner Address for which dividends are going to be claimed
     /// @return The total amount of available EUR tokens for claim
-    function claimAllDividends(address _owner) public onlyController onlyActive returns (uint256) {
+    function claimAllDividends(
+        address _owner
+    ) public onlyController onlyActive returns (uint256) {
         uint256 sumOfDividends = 0;
         if (dividendsClaimed[_owner] < dividends.length) {
-            for (uint256 i = dividendsClaimed[_owner]; i < dividends.length; i++) {
+            for (
+                uint256 i = dividendsClaimed[_owner];
+                i < dividends.length;
+                i++
+            ) {
                 if (!dividends[i].claimed[_owner]) {
-                    dividendsClaimed[_owner] = SafeMath.add(i, 1);
+                    dividendsClaimed[_owner] = i + 1;
                     uint256 dividend = claimDividendByIndex(_owner, i);
                     sumOfDividends = sumOfDividends.add(dividend);
                 }
@@ -110,7 +129,13 @@ contract DividendHistoryToken is HistoryToken {
     // Events
     ////////////////
 
-    event DividendDeposited (address indexed _depositor, uint256 _blockNumber, uint256 _amount, uint256 _totalSupply, uint256 _dividendIndex);
-    event DividendClaimed (address _fundWallet, uint256 _amount);
-
+    event DividendDeposited(
+        address indexed _depositor,
+        uint256 _blockNumber,
+        uint256 _amount,
+        uint256 _totalSupply,
+        uint256 _dividendIndex
+    );
+    event DividendClaimed(address _fundWallet, uint256 _amount);
 }
+

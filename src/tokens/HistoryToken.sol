@@ -1,31 +1,28 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
-import "../libs/SafeMath.sol";
 import "../ownership/Controlled.sol";
 import "../interfaces//WhitelistInterface.sol";
 
 /// @dev History Token
 contract HistoryToken is Controlled {
-    using SafeMath for uint256;
+    // Token identifier or code, usually acronym
+    string public symbol;
 
-    // Token identifier or code, usually acronym 
-    string public symbol; 
-
-    // Number of decimals of the smallest unit                
+    // Number of decimals of the smallest unit
     uint8 public decimals;
 
-    // Timestamp representing start of token validity, inclusive              
+    // Timestamp representing start of token validity, inclusive
     uint256 public startDate;
-    
+
     // Timestamp representing start of token validity, inclusive
     uint256 public maturityDate;
 
     // Reference to whitelist contract
     WhitelistInterface public whitelist;
-    
+
     /// @dev `Checkpoint` is the structure that attaches a block number to a
     ///  given value, the block number attached is the one that last changed the value
-    struct  Checkpoint {
+    struct Checkpoint {
         // `fromBlock` is the block number that the value was generated from
         uint128 fromBlock;
         // `value` is the amount of tokens at a specific block number
@@ -35,10 +32,10 @@ contract HistoryToken is Controlled {
     // `balances` is the map that tracks the balance of each address, in this
     //  contract when the balance changes the block number that the change
     //  occurred is also included in the map
-    mapping (address => Checkpoint[]) balances;
+    mapping(address => Checkpoint[]) balances;
 
     // `allowed` tracks any extra transfer rights as in all ERC20 tokens
-    mapping (address => mapping (address => uint256)) allowed;
+    mapping(address => mapping(address => uint256)) allowed;
 
     // Tracks the history of the `totalSupply` of the token
     Checkpoint[] totalSupplyHistory;
@@ -52,33 +49,43 @@ contract HistoryToken is Controlled {
     // Defines if fund is active or not
     bool public active;
 
-////////////////
-// Constructor
-////////////////
+    ////////////////
+    // Constructor
+    ////////////////
 
     /// @notice Constructor to create a HistoryToken
     /// @param _symbol The address of the recipient
-    constructor(string _symbol, uint8 _decimals, uint256 _mintCap, uint256 _startDate, uint256 _maturityDate, address _whitelist) public {
+    constructor(
+        string memory _symbol,
+        uint8 _decimals,
+        uint256 _mintCap,
+        uint256 _startDate,
+        uint256 _maturityDate,
+        address _whitelist
+    ) {
         require(_whitelist != address(0));
         symbol = _symbol;
         decimals = _decimals;
         mintCap = _mintCap;
         startDate = _startDate;
         maturityDate = _maturityDate;
-        whitelist = WhitelistInterface(_whitelist);                        
+        whitelist = WhitelistInterface(_whitelist);
         transfersEnabled = true;
         active = true;
     }
 
-///////////////////
-// ERC20 Methods
-///////////////////
+    ///////////////////
+    // ERC20 Methods
+    ///////////////////
 
     /// @notice Send `_amount` tokens to `_to` from `msg.sender`
     /// @param _to The address of the recipient
     /// @param _amount The amount of tokens to be transferred
-    /// @return Whether the transfer was successful or not
-    function transfer(address _to, uint256 _amount) public onlyValid returns (bool success) {
+    /// @return success Whether the transfer was successful or not
+    function transfer(
+        address _to,
+        uint256 _amount
+    ) public onlyValid returns (bool success) {
         require(transfersEnabled);
         doTransfer(msg.sender, _to, _amount);
         return true;
@@ -88,8 +95,12 @@ contract HistoryToken is Controlled {
     /// @param _from The address holding the tokens being transferred
     /// @param _to The address of the recipient
     /// @param _amount The amount of tokens to be transferred
-    /// @return True if the transfer was successful
-    function transferFrom(address _from, address _to, uint256 _amount) public onlyValid returns (bool success) {
+    /// @return success True if the transfer was successful
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public onlyValid returns (bool success) {
         // The controller of this contract can move tokens around at will,
         //  this is important to recognize! Confirm that you trust the
         //  controller of this contract, which in most situations should be
@@ -99,7 +110,7 @@ contract HistoryToken is Controlled {
 
             // The standard ERC 20 transferFrom functionality
             require(allowed[_from][msg.sender] >= _amount);
-            allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amount);
+            allowed[_from][msg.sender] = allowed[_from][msg.sender] - _amount;
         }
         doTransfer(_from, _to, _amount);
         return true;
@@ -109,13 +120,12 @@ contract HistoryToken is Controlled {
     /// @param _from The address holding the tokens being transferred
     /// @param _to The address of the recipient
     /// @param _amount The amount of tokens to be transferred
-    /// @return True if the transfer was successful
     function doTransfer(address _from, address _to, uint256 _amount) internal {
         // Check if both _from and _to are whitelisted
         require(whitelist.isWhitelisted(_from) && whitelist.isWhitelisted(_to));
 
         if (_amount == 0) {
-            emit Transfer(_from, _to, _amount);    // Follow the spec to louch the event when transfer 0
+            emit Transfer(_from, _to, _amount); // Follow the spec to louch the event when transfer 0
             return;
         }
 
@@ -129,20 +139,20 @@ contract HistoryToken is Controlled {
 
         // First update the balance array with the new value for the address
         //  sending the tokens
-        updateValueAtNow(balances[_from], previousBalanceFrom.sub(_amount));
+        updateValueAtNow(balances[_from], previousBalanceFrom - _amount);
 
         // Then update the balance array with the new value for the address
         //  receiving the tokens
         uint256 previousBalanceTo = balanceOfAt(_to, block.number);
         require(previousBalanceTo + _amount >= previousBalanceTo); // Check for overflow
-        updateValueAtNow(balances[_to], previousBalanceTo.add(_amount));
+        updateValueAtNow(balances[_to], previousBalanceTo + _amount);
 
         // An event to make the transfer easy to find on the blockchain
         emit Transfer(_from, _to, _amount);
     }
 
     /// @param _owner The address that's balance is being requested
-    /// @return The balance of `_owner` at the current block
+    /// @return balance The balance of `_owner` at the current block
     function balanceOf(address _owner) public view returns (uint256 balance) {
         return balanceOfAt(_owner, block.number);
     }
@@ -152,8 +162,11 @@ contract HistoryToken is Controlled {
     ///  to be a little bit safer
     /// @param _spender The address of the account able to transfer the tokens
     /// @param _amount The amount of tokens to be approved for transfer
-    /// @return True if the approval was successful
-    function approve(address _spender, uint256 _amount) public onlyValid returns (bool success) {
+    /// @return success True if the approval was successful
+    function approve(
+        address _spender,
+        uint256 _amount
+    ) public onlyValid returns (bool success) {
         require(transfersEnabled);
 
         // To change the approve amount you first have to reduce the addresses`
@@ -170,9 +183,12 @@ contract HistoryToken is Controlled {
     /// @dev This function makes it easy to read the `allowed[]` map
     /// @param _owner The address of the account that owns the token
     /// @param _spender The address of the account able to transfer the tokens
-    /// @return Amount of remaining tokens of _owner that _spender is allowed
+    /// @return remaining Amount of remaining tokens of _owner that _spender is allowed
     ///  to spend
-    function allowance(address _owner, address _spender) public view returns (uint256 remaining) {
+    function allowance(
+        address _owner,
+        address _spender
+    ) public view returns (uint256 remaining) {
         return allowed[_owner][_spender];
     }
 
@@ -182,22 +198,27 @@ contract HistoryToken is Controlled {
         return totalSupplyAt(block.number);
     }
 
-
-////////////////
-// Query balance and totalSupply in History
-////////////////
+    ////////////////
+    // Query balance and totalSupply in History
+    ////////////////
 
     /// @dev Queries the balance of `_owner` at a specific `_blockNumber`
     /// @param _owner The address from which the balance will be retrieved
     /// @param _blockNumber The block number when the balance is queried
     /// @return The balance at `_blockNumber`
-    function balanceOfAt(address _owner, uint256 _blockNumber) public view returns (uint256) {
+    function balanceOfAt(
+        address _owner,
+        uint256 _blockNumber
+    ) public view returns (uint256) {
         // These next few lines are used when the balance of the token is
         //  requested before a check point was ever created for this token, it
         //  requires that the `parentToken.balanceOfAt` be queried at the
         //  genesis block for that token as this contains initial balance of
         //  this token
-        if ((balances[_owner].length == 0) || (balances[_owner][0].fromBlock > _blockNumber)) {
+        if (
+            (balances[_owner].length == 0) ||
+            (balances[_owner][0].fromBlock > _blockNumber)
+        ) {
             return 0;
         } else {
             // This will return the expected balance during normal situations
@@ -208,13 +229,16 @@ contract HistoryToken is Controlled {
     /// @notice Total amount of tokens at a specific `_blockNumber`.
     /// @param _blockNumber The block number when the totalSupply is queried
     /// @return The total amount of tokens at `_blockNumber`
-    function totalSupplyAt(uint256 _blockNumber) public view returns(uint256) {
+    function totalSupplyAt(uint256 _blockNumber) public view returns (uint256) {
         // These next few lines are used when the totalSupply of the token is
         //  requested before a check point was ever created for this token, it
         //  requires that the `parentToken.totalSupplyAt` be queried at the
         //  genesis block for this token as that contains totalSupply of this
         //  token at this block number.
-        if ((totalSupplyHistory.length == 0) || (totalSupplyHistory[0].fromBlock > _blockNumber)) {
+        if (
+            (totalSupplyHistory.length == 0) ||
+            (totalSupplyHistory[0].fromBlock > _blockNumber)
+        ) {
             return 0;
         } else {
             // This will return the expected totalSupply during normal situations
@@ -222,29 +246,32 @@ contract HistoryToken is Controlled {
         }
     }
 
-////////////////
-// Mint tokens
-////////////////
+    ////////////////
+    // Mint tokens
+    ////////////////
 
     /// @notice Mints `_amount` tokens that are assigned to `_owner`
     /// @param _amount The quantity of tokens minted
     /// @param _owner The address that will be assigned the new tokens
     /// @return True if the tokens are minted correctly
-    function mint(uint256 _amount, address _owner) public onlyController onlyValid returns (bool) {
+    function mint(
+        uint256 _amount,
+        address _owner
+    ) public onlyController onlyValid returns (bool) {
         uint256 curTotalSupply = totalSupply();
         require(curTotalSupply + _amount >= curTotalSupply); // Check for overflow
         require(curTotalSupply + _amount <= mintCap); // Check if max amount of tokens is reachedCheck if max amount of tokens is reached
         uint256 previousBalanceTo = balanceOf(_owner);
         require(previousBalanceTo + _amount >= previousBalanceTo); // Check for overflow
-        updateValueAtNow(totalSupplyHistory, curTotalSupply.add(_amount));
-        updateValueAtNow(balances[_owner], previousBalanceTo.add(_amount));
+        updateValueAtNow(totalSupplyHistory, curTotalSupply + _amount);
+        updateValueAtNow(balances[_owner], previousBalanceTo + _amount);
         emit Transfer(address(0), _owner, _amount);
         return true;
     }
-    
-////////////////
-// Enable tokens transfers, closing and validity check
-////////////////
+
+    ////////////////
+    // Enable tokens transfers, closing and validity check
+    ////////////////
 
     /// @notice Enables token holders to transfer their tokens freely if true
     /// @param _transfersEnabled True if transfers are allowed in the clone
@@ -254,7 +281,7 @@ contract HistoryToken is Controlled {
 
     /// @notice Close the fund, can be called only once when fund matures
     function close() public onlyController {
-        require(maturityDate <= now && active);
+        require(maturityDate <= block.timestamp && active);
         active = false;
     }
 
@@ -272,7 +299,7 @@ contract HistoryToken is Controlled {
 
     /// @notice Checks if fund is valid or current time inside time boundaries
     function isValid() public view returns (bool) {
-        return startDate <= now && maturityDate >= now;
+        return startDate <= block.timestamp && maturityDate >= block.timestamp;
     }
 
     /// @notice Checks if fund is active
@@ -281,23 +308,24 @@ contract HistoryToken is Controlled {
         _;
     }
 
-////////////////
-// Internal helper functions to query and set a value in a snapshot array
-////////////////
+    ////////////////
+    // Internal helper functions to query and set a value in a snapshot array
+    ////////////////
 
     /// @dev `getValueAt` retrieves the number of tokens at a given block number
     /// @param checkpoints The history of values being queried
     /// @param _block The block number to retrieve the value at
     /// @return The number of tokens being queried
-    function getValueAt(Checkpoint[] storage checkpoints, uint256 _block) view internal returns (uint256) {
-        if (checkpoints.length == 0) 
-            return 0;
+    function getValueAt(
+        Checkpoint[] storage checkpoints,
+        uint256 _block
+    ) internal view returns (uint256) {
+        if (checkpoints.length == 0) return 0;
 
         // Shortcut for the actual value
         if (_block >= checkpoints[checkpoints.length - 1].fromBlock)
             return checkpoints[checkpoints.length - 1].value;
-        if (_block < checkpoints[0].fromBlock)
-            return 0;
+        if (_block < checkpoints[0].fromBlock) return 0;
 
         // Binary search of the value in the array
         uint min = 0;
@@ -317,25 +345,38 @@ contract HistoryToken is Controlled {
     ///  `totalSupplyHistory`
     /// @param checkpoints The history of data being updated
     /// @param _value The new number of tokens
-    function updateValueAtNow(Checkpoint[] storage checkpoints, uint256 _value) internal  {
-        if ((checkpoints.length == 0) || (checkpoints[checkpoints.length - 1].fromBlock < block.number)) {
-            Checkpoint storage newCheckPoint = checkpoints[checkpoints.length++];
-            newCheckPoint.fromBlock =  uint128(block.number);
+    function updateValueAtNow(
+        Checkpoint[] storage checkpoints,
+        uint256 _value
+    ) internal {
+        if (
+            (checkpoints.length == 0) ||
+            (checkpoints[checkpoints.length - 1].fromBlock < block.number)
+        ) {
+            Checkpoint storage newCheckPoint = checkpoints[
+                checkpoints.length + 1
+            ];
+            newCheckPoint.fromBlock = uint128(block.number);
             newCheckPoint.value = uint128(_value);
         } else {
-            Checkpoint storage oldCheckPoint = checkpoints[checkpoints.length - 1];
+            Checkpoint storage oldCheckPoint = checkpoints[
+                checkpoints.length - 1
+            ];
             oldCheckPoint.value = uint128(_value);
         }
     }
 
-    /// @dev fallback function which prohibits payment
-    function () public payable {
+    fallback() external payable {
         revert();
     }
 
-//////////
-// Safety Methods
-//////////
+    receive() external payable {
+        revert();
+    }
+
+    //////////
+    // Safety Methods
+    //////////
 
     /// @notice This method can be used by the controller to extract mistakenly
     ///  sent tokens to this contract.
@@ -343,21 +384,29 @@ contract HistoryToken is Controlled {
     ///  set to 0 in case you want to extract ether.
     function claimTokens(address _token) public onlyController {
         if (_token == address(0)) {
-            controller.transfer(address(this).balance);
+            payable(address(controller)).transfer(address(this).balance);
             return;
         }
 
-        HistoryToken token = HistoryToken(_token);
-        uint balance = token.balanceOf(this);
+        HistoryToken token = HistoryToken(payable(_token));
+        uint balance = token.balanceOf(payable(this));
         token.transfer(controller, balance);
         emit ClaimedTokens(_token, controller, balance);
     }
 
-////////////////
-// Events
-////////////////
+    ////////////////
+    // Events
+    ////////////////
 
-    event ClaimedTokens(address indexed _token, address indexed _controller, uint256 _amount);
+    event ClaimedTokens(
+        address indexed _token,
+        address indexed _controller,
+        uint256 _amount
+    );
     event Transfer(address indexed _from, address indexed _to, uint256 _amount);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _amount);
+    event Approval(
+        address indexed _owner,
+        address indexed _spender,
+        uint256 _amount
+    );
 }

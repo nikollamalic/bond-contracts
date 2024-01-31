@@ -1,38 +1,37 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 import "../ownership/Controlled.sol";
 import "../interfaces/ERC20Interface.sol";
 
 /// @dev Bond Whitelist
 contract BondWhitelist is Controlled {
-
     // mapping showing if address is whitelisted or not
     mapping(address => bool) whitelisted;
 
     /// @notice Add address to whitelist
     /// @param _address Address to be whitelisted
-    function add(address _address) onlyController public {
+    function add(address _address) public onlyController {
         whitelisted[_address] = true;
     }
 
     /// @notice Remove address from whitelist
     /// @param _address Address to be removed from whitelist
-    function remove(address _address) onlyController public {
+    function remove(address _address) public onlyController {
         whitelisted[_address] = false;
     }
 
     /// @notice Add multiple addresses to whitelist
     /// @param _addresses Addresses to be whitelisted
-    function bulkAdd(address[] _addresses) onlyController public {
-        for(uint256 i = 0; i < _addresses.length; i++) {
+    function bulkAdd(address[] calldata _addresses) public onlyController {
+        for (uint256 i = 0; i < _addresses.length; i++) {
             whitelisted[_addresses[i]] = true;
         }
     }
 
     /// @notice Remove multiple addresses from whitelist
     /// @param _addresses Addresses to be removed from whitelist
-    function bulkRemove(address[] _addresses) onlyController public {
-        for(uint256 i = 0; i < _addresses.length; i++) {
+    function bulkRemove(address[] calldata _addresses) public onlyController {
+        for (uint256 i = 0; i < _addresses.length; i++) {
             whitelisted[_addresses[i]] = false;
         }
     }
@@ -45,7 +44,11 @@ contract BondWhitelist is Controlled {
     }
 
     /// @dev fallback function which prohibits payment
-    function () public payable {
+    fallback() external payable {
+        revert();
+    }
+
+    receive() external payable {
         revert();
     }
 
@@ -55,16 +58,20 @@ contract BondWhitelist is Controlled {
     ///  set to 0 in case you want to extract ether.
     function claimTokens(address _token) public onlyController {
         if (_token == address(0)) {
-            controller.transfer(address(this).balance);
+            payable(address(controller)).transfer(address(this).balance);
             return;
         }
 
         ERC20Interface token = ERC20Interface(_token);
-        uint balance = token.balanceOf(this);
+        uint balance = token.balanceOf(payable(this));
         token.transfer(controller, balance);
         emit ClaimedTokens(_token, controller, balance);
     }
 
-    event ClaimedTokens(address indexed _token, address indexed _controller, uint256 _amount);
-
+    event ClaimedTokens(
+        address indexed _token,
+        address indexed _controller,
+        uint256 _amount
+    );
 }
+

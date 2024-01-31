@@ -1,13 +1,12 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 /// @dev Ownable
 contract Ownable {
-
     // Owner address
     address public owner;
 
     /// @notice Constructor to initiate a Ownable contract
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 
@@ -19,11 +18,15 @@ contract Ownable {
 
     /// @notice Gives possibility to change the owner
     /// @param _newOwner address representing new owner
-    function transferOwnership(address _newOwner) onlyOwner public {
+    function transferOwnership(address _newOwner) public onlyOwner {
         require(_newOwner != address(0));
         emit OwnershipTransferred(owner, _newOwner);
         owner = _newOwner;
     }
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 }
+

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 import "./WhitelistInterface.sol";
 import "./ClaimableTokensInterface.sol";

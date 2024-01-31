@@ -1,6 +1,6 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 /// @dev Whitelist Interface
-contract WhitelistInterface {
-    function isWhitelisted(address _address) public view returns (bool);
+abstract contract WhitelistInterface {
+    function isWhitelisted(address _address) virtual public view returns (bool);
 }

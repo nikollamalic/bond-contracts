@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 import "./MintableERC20Interface.sol";
 import "./ClaimableTokensInterface.sol";

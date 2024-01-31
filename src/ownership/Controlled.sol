@@ -1,19 +1,18 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.24;
 
 /// @dev Controlled
 contract Controlled {
-
     // Controller address
     address public controller;
 
     /// @notice Checks if msg.sender is controller
-    modifier onlyController { 
-        require(msg.sender == controller); 
-        _; 
+    modifier onlyController() {
+        require(msg.sender == controller);
+        _;
     }
 
     /// @notice Constructor to initiate a Controlled contract
-    constructor() public { 
+    constructor()  {
         controller = msg.sender;
     }
 
@@ -22,5 +21,4 @@ contract Controlled {
     function changeController(address _newController) public onlyController {
         controller = _newController;
     }
-
 }

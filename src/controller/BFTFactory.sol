@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity 0.8.24;
 
 import "../tokens/BondFundToken.sol";
 import "../ownership/Controlled.sol";
@@ -40,8 +40,11 @@ contract BFTFactory is Controlled {
         return address(token);
     }
 
-    /// @dev fallback function which prohibits payment
-    function () public payable {
+    fallback() external payable {
+        revert();
+    }
+
+    receive() external payable {
         revert();
     }
 

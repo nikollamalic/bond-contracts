@@ -1,7 +1,5 @@
-pragma solidity ^0.4.24;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.24;
 
-import "../libs/SafeMath.sol";
 import "../interfaces/ERC20Interface.sol";
 import "../ownership/Ownable.sol";
 import "../interfaces/EURTokenInterface.sol";
@@ -11,9 +9,7 @@ import "../interfaces/BFTFactoryInterface.sol";
 
 /// @dev Bond Funds Controller
 contract BondFundsController is Ownable {
-    using SafeMath for uint256;
-
-    /// @dev `FundTokenIndex` is the structure that represents 
+    /// @dev `FundTokenIndex` is the structure that represents
     ///  fund token index in fundTokens array
     struct FundTokenIndex {
         // `index` where fund token is in fundTokens array
@@ -27,7 +23,7 @@ contract BondFundsController is Ownable {
 
     // Array representing the fund tokens
     BFTInterface[] public fundTokens;
-    
+
     // EUR token reference
     EURTokenInterface public eurToken;
 
@@ -37,12 +33,16 @@ contract BondFundsController is Ownable {
     // Factory reference
     BFTFactoryInterface public factory;
 
-////////////////
-// Constructor
-////////////////
+    ////////////////
+    // Constructor
+    ////////////////
 
     /// @notice Constructor to create a controller
-    constructor(address _whitelist, address _eurToken, address _factory) public {
+    constructor(
+        address _whitelist,
+        address _eurToken,
+        address _factory
+    ) public {
         require(_whitelist != address(0));
         require(_eurToken != address(0));
         require(_factory != address(0));
@@ -51,14 +51,16 @@ contract BondFundsController is Ownable {
         factory = BFTFactoryInterface(_factory);
     }
 
-////////////////
-// Helper functions
-////////////////
+    ////////////////
+    // Helper functions
+    ////////////////
 
     /// @notice Gets fund by `_symbol`
     /// @param _symbol The symbol or acronym fund is identified with
     /// @return Fund token contract through BFTInterface
-    function getFundBySymbol(string _symbol) public view returns (BFTInterface) {
+    function getFundBySymbol(
+        string _symbol
+    ) public view returns (BFTInterface) {
         bytes32 symbolHash = keccak256(abi.encodePacked(_symbol));
         FundTokenIndex memory indexStruct = indexes[symbolHash];
         require(indexStruct.exists && indexStruct.index < fundTokens.length);
@@ -66,9 +68,9 @@ contract BondFundsController is Ownable {
         return fundToken;
     }
 
-//////////
-// Bond Fund Token proxy functions
-//////////
+    //////////
+    // Bond Fund Token proxy functions
+    //////////
 
     /// @notice Creates new bond fund token contract
     /// @param _name The name of the fund
@@ -90,14 +92,14 @@ contract BondFundsController is Ownable {
     ) public onlyOwner returns (address) {
         bytes32 symbolHash = keccak256(abi.encodePacked(_symbol));
         require(!indexes[symbolHash].exists);
-        address tokenAddress = factory.createBondFundToken (
-            _name, 
-            _symbol, 
+        address tokenAddress = factory.createBondFundToken(
+            _name,
+            _symbol,
             _mintCap,
-            _startDate, 
-            _maturityDate, 
-            whitelist, 
-            _documentURL, 
+            _startDate,
+            _maturityDate,
+            whitelist,
+            _documentURL,
             _documentHash
         );
         indexes[symbolHash] = FundTokenIndex(fundTokens.length, true);
@@ -108,7 +110,10 @@ contract BondFundsController is Ownable {
     /// @notice Enables or disables fund token transfers
     /// @param _symbol The symbol or acronym fund is identified with
     /// @param _transfersEnabled True if transfers should be enabled
-    function enableBondFundTokenTransfers(string _symbol, bool _transfersEnabled) public onlyOwner {
+    function enableBondFundTokenTransfers(
+        string _symbol,
+        bool _transfersEnabled
+    ) public onlyOwner {
         BFTInterface fundToken = getFundBySymbol(_symbol);
         fundToken.enableTransfers(_transfersEnabled);
     }
@@ -117,10 +122,14 @@ contract BondFundsController is Ownable {
     /// @param _symbol The symbol or acronym fund is identified with
     /// @param _owner Address on which tokens are minted
     /// @param _amount Amount of minted tokens
-    function mintBondFundToken(string _symbol, address _owner, uint256 _amount) public onlyOwner {
+    function mintBondFundToken(
+        string _symbol,
+        address _owner,
+        uint256 _amount
+    ) public onlyOwner {
         require(_owner != address(0));
         BFTInterface fundToken = getFundBySymbol(_symbol);
-        if (!whitelist.isWhitelisted(_owner)){
+        if (!whitelist.isWhitelisted(_owner)) {
             whitelist.add(_owner);
         }
         fundToken.mint(_amount, _owner);
@@ -132,7 +141,12 @@ contract BondFundsController is Ownable {
     /// @param _to The address of the recipient
     /// @param _amount The amount of tokens to be transferred
     /// @return True if the transfer was successful
-    function transferFromBondFundToken(string _symbol, address _from, address _to, uint256 _amount) public onlyOwner returns (bool success) {
+    function transferFromBondFundToken(
+        string _symbol,
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public onlyOwner returns (bool success) {
         BFTInterface fundToken = getFundBySymbol(_symbol);
         return fundToken.transferFrom(_from, _to, _amount);
     }
@@ -147,7 +161,10 @@ contract BondFundsController is Ownable {
     /// @notice This method can be used to deposit dividends
     /// @param _symbol The symbol or acronym fund is identified with
     /// @param _amount The amount that is going to be created as new dividend
-    function depositDividendBondFundToken(string _symbol, uint256 _amount) public onlyOwner {
+    function depositDividendBondFundToken(
+        string _symbol,
+        uint256 _amount
+    ) public onlyOwner {
         BFTInterface fundToken = getFundBySymbol(_symbol);
         fundToken.depositDividend(_amount);
     }
@@ -155,7 +172,10 @@ contract BondFundsController is Ownable {
     /// @notice This method can be used to deposit multiple dividends at once
     /// @param _symbols Symbols or acronyms funds are identified with
     /// @param _amounts Amounts which are going to be used as base for new dividends
-    function bulkDepositDividendBondFundToken(string[] _symbols, uint256[] _amounts) public onlyOwner {
+    function bulkDepositDividendBondFundToken(
+        string[] _symbols,
+        uint256[] _amounts
+    ) public onlyOwner {
         require(_symbols.length == _amounts.length && _symbols.length > 0);
         for (uint256 i = 0; i < _symbols.length; i++) {
             BFTInterface fundToken = getFundBySymbol(_symbols[i]);
@@ -168,12 +188,16 @@ contract BondFundsController is Ownable {
     /// @notice Calculates available dividends for all funds for `_fundWallets` addresses
     /// @param _fundWallets Addresses having fund tokens
     /// @return The total amount of available EUR tokens for claim
-    function unclaimedDividends(address[] _fundWallets) public view returns (uint256) {
+    function unclaimedDividends(
+        address[] _fundWallets
+    ) public view returns (uint256) {
         uint256 sumOfDividends = 0;
         for (uint256 i = 0; i < fundTokens.length; i++) {
             if (fundTokens[i].isActive()) {
                 for (uint256 j = 0; j < _fundWallets.length; j++) {
-                    uint256 dividends = fundTokens[i].unclaimedDividends(_fundWallets[j]);
+                    uint256 dividends = fundTokens[i].unclaimedDividends(
+                        _fundWallets[j]
+                    );
                     sumOfDividends = sumOfDividends.add(dividends);
                 }
             }
@@ -184,11 +208,16 @@ contract BondFundsController is Ownable {
     /// @notice Claims available dividends for `_fundWallets` addresses
     /// @param _fundWallets Fund wallets holding the tokens used to claim dividends
     /// @param _dividendWallet Wallet on which dividends are claimed on
-    function claimDividendBondFundTokens(address[] _fundWallets, address _dividendWallet) public onlyOwner {
+    function claimDividendBondFundTokens(
+        address[] _fundWallets,
+        address _dividendWallet
+    ) public onlyOwner {
         require(_dividendWallet != address(0));
         uint256 sumOfDividends = 0;
         for (uint256 i = 0; i < _fundWallets.length; i++) {
-            uint256 dividends = claimDividendsActiveBondFundTokens(_fundWallets[i]);
+            uint256 dividends = claimDividendsActiveBondFundTokens(
+                _fundWallets[i]
+            );
             sumOfDividends = sumOfDividends.add(dividends);
         }
         if (sumOfDividends > 0) {
@@ -200,7 +229,9 @@ contract BondFundsController is Ownable {
     /// @dev Internal claim of dividends for active fund token contracts
     /// @param _to Fund wallet used as a base for calculation
     /// @return The total amount of available EUR tokens for claim
-    function claimDividendsActiveBondFundTokens(address _to) internal returns (uint256) {
+    function claimDividendsActiveBondFundTokens(
+        address _to
+    ) internal returns (uint256) {
         require(_to != address(0));
         uint256 sumOfDividends = 0;
         for (uint256 i = 0; i < fundTokens.length; i++) {
@@ -211,27 +242,33 @@ contract BondFundsController is Ownable {
         }
         return sumOfDividends;
     }
-    
 
     /// @notice This method can be used to extract mistakenly sent tokens to fund
     ///  token contract identified with _symbol.
     /// @param _token The address of the token contract that you want to recover
     ///  set to 0 in case you want to extract ether.
-    function claimTokensBondFund(string _symbol, address _token) public onlyOwner {
+    function claimTokensBondFund(
+        string _symbol,
+        address _token
+    ) public onlyOwner {
         BFTInterface fundToken = getFundBySymbol(_symbol);
         fundToken.claimTokens(_token);
     }
 
-//////////
-// Bond EUR Token proxy functions
-//////////
+    //////////
+    // Bond EUR Token proxy functions
+    //////////
 
     /// @notice Transfer EUR tokens from one address to another
     /// @param _from address The address which you want to send tokens from
     /// @param _to address The address which you want to transfer to
     /// @param _value uint256 the amount of tokens to be transferred
     /// @return True if transfer successful
-    function transferFromEURToken(address _from, address _to, uint256 _value) public onlyOwner returns (bool) {
+    function transferFromEURToken(
+        address _from,
+        address _to,
+        uint256 _value
+    ) public onlyOwner returns (bool) {
         return eurToken.transferFrom(_from, _to, _value);
     }
 
@@ -239,7 +276,10 @@ contract BondFundsController is Ownable {
     /// @param _value The amount of tokens to mint.
     /// @param _to The address that will receive the minted tokens.
     /// @return A boolean that indicates if the operation was successful.
-    function mintEURToken(uint256 _value, address _to) public onlyOwner returns (bool) {
+    function mintEURToken(
+        uint256 _value,
+        address _to
+    ) public onlyOwner returns (bool) {
         return eurToken.mint(_value, _to);
     }
 
@@ -247,10 +287,13 @@ contract BondFundsController is Ownable {
     /// @param _value The amount of token to be burned.
     /// @param _from The address from which tokens are burned.
     /// @return A boolean that indicates if the operation was successful.
-    function burnEURToken(uint256 _value, address _from) public onlyOwner returns (bool) {
+    function burnEURToken(
+        uint256 _value,
+        address _from
+    ) public onlyOwner returns (bool) {
         return eurToken.burn(_value, _from);
     }
-    
+
     /// @notice Enables or disables EUR token transfers
     /// @param _transfersEnabled True if transfers should be enabled
     function enableEURTokenTransfers(bool _transfersEnabled) public onlyOwner {
@@ -265,15 +308,14 @@ contract BondFundsController is Ownable {
         eurToken.claimTokens(_token);
     }
 
-//////////
-// Bond Whitelist proxy functions
-//////////
+    //////////
+    // Bond Whitelist proxy functions
+    //////////
 
     /// @dev Automatic whitelisting of controller if not whitelisted
     function addControllerToWhitelist() internal {
         address controller = address(this);
-        if (!whitelist.isWhitelisted(controller))
-            whitelist.add(controller);
+        if (!whitelist.isWhitelisted(controller)) whitelist.add(controller);
     }
 
     /// @notice Check if address is whitelisted
@@ -315,9 +357,9 @@ contract BondFundsController is Ownable {
         whitelist.claimTokens(_token);
     }
 
-////////////////
-// BFT Factory proxy functions
-////////////////
+    ////////////////
+    // BFT Factory proxy functions
+    ////////////////
 
     /// @notice This method can be used to extract mistakenly sent tokens to Factory
     ///  token contract
@@ -327,12 +369,12 @@ contract BondFundsController is Ownable {
         factory.claimTokens(_token);
     }
 
-////////////////
-// Safety functions
-////////////////
+    ////////////////
+    // Safety functions
+    ////////////////
 
     /// @dev fallback function which prohibits payment
-    function () public payable {
+    function() public payable {
         revert();
     }
 
@@ -352,9 +394,14 @@ contract BondFundsController is Ownable {
         emit ClaimedTokens(_token, owner, balance);
     }
 
-////////////////
-// Events
-////////////////
+    ////////////////
+    // Events
+    ////////////////
 
-    event ClaimedTokens(address indexed _token, address indexed _owner, uint256 _amount);
+    event ClaimedTokens(
+        address indexed _token,
+        address indexed _owner,
+        uint256 _amount
+    );
 }
+
